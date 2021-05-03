@@ -1,0 +1,425 @@
+﻿///$tab Main
+SET ThousandSep=',';
+SET DecimalSep='.';
+SET MoneyThousandSep=',';
+SET MoneyDecimalSep='.';
+SET MoneyFormat='$#,##0.00;-$#,##0.00';
+SET TimeFormat='hh:mm:ss';
+SET DateFormat='DD-MM-YY';
+SET TimestampFormat='DD-MM-YY hh:mm:ss[.fff]';
+SET FirstWeekDay=6;
+SET BrokenWeeks=1;
+SET ReferenceDay=0;
+SET FirstMonthOfYear=1;
+SET CollationLocale='en-US';
+SET MonthNames='Jan;Feb;Mar;Apr;May;Jun;Jul;Aug;Sep;Oct;Nov;Dec';
+SET LongMonthNames='January;February;March;April;May;June;July;August;September;October;November;December';
+SET DayNames='Mon;Tue;Wed;Thu;Fri;Sat;Sun';
+SET LongDayNames='Monday;Tuesday;Wednesday;Thursday;Friday;Saturday;Sunday';
+
+///$tab Crosstab
+//Staging:
+//	LOAD date_unit, google, ozbargain, promobit, promocoupons24, reyesdelchollo, facebook, t, 
+//     tinywriters, yahoo, Other
+//FROM [C:\The Complete QlikView Boot Camp\Section 16\ExternalTrafficSource.csv]
+//(txt, codepage is 1252, embedded labels, delimiter is ',', msq);
+//
+//crosstable(Source,Traffic,1)
+//
+//TrafficStats:
+//LOAD 
+//	date_unit as YearMonth, 
+//	google, 
+//	ozbargain, 
+//	promobit, 
+//	promocoupons24, 
+//	reyesdelchollo, 
+//	facebook, 
+//	t, 
+//    tinywriters, 
+//    yahoo, 
+//    Other	
+//resident Staging;
+//
+//drop table Staging;
+//
+//// crosstable (attribute field name, data field name [ , n ] ) ( loadstatement | selectstatement )
+//
+//exit script;
+///$tab RawCalendar
+// This is a preceding load
+
+// Use this code to generate a Master Calendar data set
+// Use Store to export it to a file if you want to use it elsewhere
+
+
+/*
+
+	Step 1 : Create start and end date variable and set their values, make sure they are explicitly set as number representations
+	
+	Step 2 : Define the first dimCalendar load (this is the preceding load, in other words the first load of 2 we shall do)
+			 and create the date fields that are required using the Date() function
+			 
+			 *** Note: The primary key will be Datenum
+	
+	Step 3 : Now perform the second load that will perform the Autogenerate action for each date between the Start/End dat variables 
+	         here we introduce the IterNo() and Autogenerate statements
+	 
+	
+
+*/
+
+//	let vMinDate = num(date('2011-12-31')) ;
+//	let vMaxDate = num(date('2020-12-31')) ;
+//
+//dimCalendar:
+//Load
+//	DateNum,
+//	Date(DateNum) as DayDate,
+//	Month(DateNum) as MonthAbbr,
+//	Year(DateNum) as YearNum;
+//
+//Load
+//	$(vMinDate) + IterNo() as DateNum
+//AutoGenerate 1
+//	while
+//		$(vMinDate) + IterNo() <=  $(vMaxDate) ;
+//
+//store * from dimCalendar into filepsec.qvd (QVD) ;
+//
+//
+//exit script;
+///$tab AutoNumber for Keys
+// Using autonumber to create keys
+//
+//factGLtxn:
+//	LOAD
+//		Autonumber(GroupId&AccountId) as GLKey,
+//		//GroupId, 
+//		//AccountId, 
+//		Amount
+//FROM 
+//	[C:\The Complete QlikView Boot Camp\Section 16\GLTransactions.xlsx]
+//	(ooxml, embedded labels, table is GLTxnApr2015);
+//
+//
+//
+//exit script;
+///$tab Variables 
+// Using SET for constants (Variables that stay static throught the document e.g. SET MoneyThousandSep=',';
+
+
+SET vProductFileLocation = 'C:\The Complete QlikView Boot Camp\Global Data\Product.qvd' ;
+
+
+// Using LET for variables that are evaluated on the fly e.g. LET vTodayDate = date(Today(),'YYYY-MM-DD');
+
+
+LET vToday = 'date(Today())' ;
+LET mTotalValue = '=sum(SalesAmount)';
+
+// Solution Variables
+
+let mTotalSalesAmount = chr(39) & 'Sales Amount ' & chr(39) & '& num(sum(SalesAmount),' & chr(39) & '$#,##0;-$#,##0' & chr(39) &  ')' ;
+
+let kpiTargetVsSales = chr(39) & 'Target Vs Sales ' & chr(39) & '& num(sum(SalesAmount) - sum(Targets),' & chr(39) & '$#,##0;-$#,##0' & chr(39) & ')'  ;
+
+                 //     '	   & 'Target Vs Sales ' &    '    & '& num(sum(SalesAmount) - sum(Targets),' &   '     & '$#,##0;-$#,##0'  &   '    & ')'  ;
+
+let mMalesAndFemalesCount = 'if(count(DISTINCT if(GenderFlag=1, CustomerKey))>count(DISTINCT if(GenderFlag=0, CustomerKey)),Green(),Blue())';
+
+
+// What if examples
+
+let vProductCostCoefficient = 0 ;
+let vProductPriceCoefficient = 0 ;
+
+// Conditional and Trigger variables
+
+let vShowSOH$AnalysisChart = 1;
+let vShowSalesFreightCalc = 0;
+///$tab Mapping Load Prep
+// Prepare the mapped table
+
+Mapping:
+Mapping	LOAD 
+		SaleTypeKey, 
+		SaleTypeName
+FROM 
+	[C:\The Complete QlikView Boot Camp\Global Data\SaleType.qvd] (qvd);
+
+
+///$tab Dimensions
+//// Load Dimensions from ETL'd QVD sources
+//
+
+dimProduct:
+LOAD 
+	 Color, 
+	 DaysToManufacture, 
+	 DealerPrice, 
+	 Description, 
+	 FinishedGoodsFlag, 
+	 ListPrice, 
+     Manufacturer, 
+     ProductKey, 
+     ProductLine, 
+     ProductName, 
+     ProductSubcategoryKey, 
+     ReorderPoint, 
+     SafetyStockLevel, 
+     StandardCost, 
+     Status, 
+     SupplierId
+FROM 
+	$(vProductFileLocation) (qvd) ;
+	
+	//[C:\The Complete QlikView Boot Camp\Global Data\Product.qvd] (qvd);
+
+dimProductCategory:
+LOAD 
+	ProductCategoryKey, 
+	ProductCategoryName
+FROM 
+	[C:\The Complete QlikView Boot Camp\Global Data\ProductCategory.qvd] (qvd);
+
+dimProductSubcategory:
+LOAD 
+	ProductCategoryKey, 
+	ProductSubcategoryKey, 
+	ProductSubcategoryName
+FROM 
+	[C:\The Complete QlikView Boot Camp\Global Data\ProductSubcategory.qvd] (qvd);
+
+dimSalesBudgets:
+LOAD 
+	DateKey, 
+	Year, 
+	Month, 
+	Targets
+FROM 
+	[C:\The Complete QlikView Boot Camp\Global Data\SalesBudgets.qvd] (qvd);
+
+dimCustomer:
+LOAD 
+	age(Today(),BirthDate) as Age, 
+	CommuteDistance, 
+	CustomerAlternateKey, 
+	CustomerKey, 
+    DateFirstPurchase, 
+    EducationLevel, 
+    if(isnull(EmailAddress),0,1) as hasEmailFlag, 
+    FirstName, 
+    if(Gender='F',1,0) as GenderFlag,
+    Gender, 
+    GeographyKey, 
+    HouseOwnerFlag, 
+    LastName, 
+    MaritalStatus, 
+    MiddleName, 
+    NameStyle, 
+    NumberCarsOwned, 
+    NumberChildrenAtHome, 
+    Occupation, 
+    Phone, 
+    Suffix, 
+    Title, 
+    TotalChildren, 
+    YearlyIncome,
+    class(YearlyIncome,15000,'$') as YearlyIncomeGroup,
+    class(NumberChildrenAtHome,1,'K@H') as KidsAtHomeGroup
+FROM 
+	[C:\The Complete QlikView Boot Camp\Global Data\Customer.qvd] (qvd);
+
+dimCurrency:
+LOAD 
+	CurrencyAlternateKey, 
+	CurrencyKey, 
+	CurrencyName
+FROM 
+	[C:\The Complete QlikView Boot Camp\Global Data\Currency.qvd] (qvd);
+
+dimProductSupplier:
+LOAD 
+	 AverageLeadTime, 
+	 LastReceiptCost, 
+	 LastReceiptDate, 
+	 MaxOrderQty, 
+	 MinOrderQty, 
+	 OnOrderQty, 
+     ProductKey, 
+     StandardPrice, 
+     SupplierKey, 
+     UnitMeasureCode
+FROM 
+	[C:\The Complete QlikView Boot Camp\Section 12\ProductSupplier.qvd] (qvd);
+
+dimSupplier:
+LOAD 
+	AccountNumber, 
+	ActiveFlag, 
+	CreditRating, 
+	Name as SupplierName, 
+	PreferredVendorStatus, 
+	PurchasingWebServiceURL, 
+    SupplierKey
+FROM 
+	[C:\The Complete QlikView Boot Camp\Global Data\Supplier.qvd] (qvd);
+
+dimGeoLocation:
+LOAD GeographyKey, 
+	 City, 
+	 StateProvinceName, 
+	 CountryRegionName, 
+	 SalesTerritoryKey, 
+	 Latitude & ',' & Longitude as geoKey, 
+     RowNum
+FROM [C:\The Complete QlikView Boot Camp\Global Data\GeoLocation.qvd] (qvd);
+
+
+
+
+
+
+
+
+
+
+	
+
+
+
+
+
+///$tab Facts
+// Load Facts from ETL'd QVD sources
+
+factOnlineSales:
+LOAD 
+	CurrencyKey, 
+	CustomerKey, 
+//	if(year(OrderDate=2017),date(addmonths(OrderDate,8),'YYYYMMDD')) as DateKey,
+	DateKey,
+	DueDate, 
+	ExtendedAmount, 
+	Freight, 
+//	if(year(OrderDate=2017),addmonths(OrderDate,8)) as OrderDate,						 														// Set up for demonstrating today in SA , then undo as model will be broken
+    OrderDate,
+	OrderQuantity, 
+    ProductKey, 
+    ProductStandardCost, 
+    PromotionKey, 
+    RevisionNumber, 
+    SalesAmount, 
+	applymap('Mapping',SaleTypeKey,'UnKnown' ) as SaleType,
+    SalesOrderLineNumber, 
+    SalesOrderNumber, 
+    ShipDate, 
+    TaxAmt, 
+    TotalProductCost, 
+    UnitPrice, 
+    UnitPriceDiscountPct,
+    RecNo() as RecordNo,
+    1 as IsSaleFlag
+FROM 
+	[C:\The Complete QlikView Boot Camp\Global Data\OnlineSales.qvd] (qvd) ;
+//where
+//	OrderDate <= '2017-01-16'
+//;
+
+	
+concatenate(factOnlineSales)	
+//factInventory:
+LOAD 
+	sid_DateKey as DateKey, 
+	MovementDate, 
+	ProductKey, 
+	UnitCost, 
+	UnitsBalance, 
+	UnitsIn, 
+	UnitsOut,
+	0 as IsSaleFlag
+FROM 
+	[C:\The Complete QlikView Boot Camp\Global Data\Inventory.qvd] (qvd);
+
+CurrencyHistory:
+LOAD 
+	CurrencyKey, 
+	IntraDayAverageRate, 
+	EndOfDayRate, 
+	date(OpenDate,'YYYY-MM-DD') as OpenDate, 
+	date(CloseDate,'YYYY-MM-DD') as ClosedDate
+FROM 
+	[C:\The Complete QlikView Boot Camp\Global Data\CurrencyPriceHistory.xlsx]
+	(ooxml, embedded labels, table is CurrencyPriceHistory);
+
+inner join IntervalMatch(OrderDate)
+
+LOAD
+	Distinct OpenDate , ClosedDate
+resident
+	CurrencyHistory;
+	
+	
+
+///$tab Calendar
+/*
+
+	Load Calendar from Calendar QVD , select only the date range needed by
+	testing the min/max from the fact data
+
+*/ 
+
+zTemp:
+LOAD
+	min(DateKey) as MinDateKey,
+	max(DateKey) as MaxDateKey
+resident
+	factOnlineSales;	
+	
+let vMinDateKey = peek('MinDateKey');
+let vMaxDateKey = peek('MaxDateKey');
+
+drop table zTemp;
+
+dimCalendar:
+LOAD DateKey, 
+	 DisplayDate, 
+	 MonthYearName, 
+     dual(MonthAbbr,MonthNum) as MonthAbbr,
+	 MonthNumInYear,
+	 MonthStartDate, 
+	 MonthEndDate, 
+	 MonthNum,
+	 DayDate, 
+     DayDateShort, 
+     YearWeek, 
+     DayNumYear, 
+     WeekNumYear, 
+     DayAbbr, 
+     DayAbbrShort, 
+     MonthDayNum, 
+     YearMonth, 
+     YearNum, 
+     CalQrtrNum, 
+     CalQrtrName, 
+     FinQtrNum, 
+     FinQtrStartDate, 
+     FinQtrEndDate, 
+     FinYearQtrName, 
+     FinYearQtrNum, 
+     FinYearNum, 
+     FinPrevQtrStartDate, 
+     FinPrevQtrEndDate
+FROM 
+	[C:\The Complete QlikView Boot Camp\Global Data\Calendar.qvd] (qvd)
+where
+	DateKey >= $(vMinDateKey) and
+	DateKey <= $(vMaxDateKey);	
+	
+
+
+
+
+
+
